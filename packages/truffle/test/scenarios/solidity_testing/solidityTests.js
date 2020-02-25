@@ -1,15 +1,16 @@
-var Box = require("truffle-box");
-var MemoryLogger = require("../memorylogger");
-var CommandRunner = require("../commandrunner");
-var fs = require("fs-extra");
-var path = require("path");
-var assert = require("assert");
-var Server = require("../server");
-var Reporter = require("../reporter");
+const Box = require("@truffle/box");
+const MemoryLogger = require("../memorylogger");
+const CommandRunner = require("../commandrunner");
+const fs = require("fs-extra");
+const path = require("path");
+const assert = require("assert");
+const Server = require("../server");
+const Reporter = require("../reporter");
 
 describe("Solidity Tests", function() {
-  var logger = new MemoryLogger();
-  var config;
+  const logger = new MemoryLogger();
+  let config;
+  let options;
 
   /**
    * Installs a bare truffle project and deposits a solidity test target
@@ -17,27 +18,22 @@ describe("Solidity Tests", function() {
    * @param  {Function} done callback
    * @param  {String}   file Solidity test target
    */
-  function initSandbox(done, file) {
-    Box.sandbox("bare", function(err, conf) {
-      if (err) return done(err);
-      config = conf;
-      config.logger = logger;
-      config.network = "development";
-      config.mocha = {
-        reporter: new Reporter(logger)
-      };
-      const from = path.join(__dirname, file);
+  async function initSandbox(file) {
+    options = { name: "bare", force: true };
+    config = await Box.sandbox(options);
+    config.logger = logger;
+    config.network = "development";
+    config.mocha = {
+      reporter: new Reporter(logger)
+    };
+    const from = path.join(__dirname, file);
 
-      fs.ensureDir(config.test_directory)
-        .then(() => {
-          fs.copy(from, config.test_directory + `/${file}`);
-          done();
-        });
-    });
-  };
+    await fs.ensureDir(config.test_directory);
+    await fs.copy(from, config.test_directory + `/${file}`);
+  }
 
-  function processErr(err, output){
-    if (err){
+  function processErr(err, output) {
+    if (err) {
       console.log(output);
       throw new Error(err);
     }
@@ -46,10 +42,9 @@ describe("Solidity Tests", function() {
   before(done => Server.start(done));
   after(done => Server.stop(done));
 
-  describe('test with balance', function(){
-    before(function(done){
-      this.timeout(5000);
-      initSandbox(done, 'TestWithBalance.sol');
+  describe("test with balance", function() {
+    before(async () => {
+      await initSandbox("TestWithBalance.sol");
     });
 
     it("will run the test and have the correct balance", function(done) {
@@ -62,12 +57,11 @@ describe("Solidity Tests", function() {
         done();
       });
     });
-  });
+  }).timeout(5000);
 
-  describe('tests failing', function(){
-    before(function(done) {
-      this.timeout(5000);
-      initSandbox(done, 'TestFailures.sol');
+  describe("tests failing", function() {
+    before(async () => {
+      await initSandbox("TestFailures.sol");
     });
 
     it("will throw errors correctly", function(done) {
@@ -80,5 +74,5 @@ describe("Solidity Tests", function() {
         done();
       });
     });
-  });
+  }).timeout(5000);
 });
